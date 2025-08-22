@@ -1,4 +1,6 @@
 name: Refresh Market Data
+permissions:
+  contents: write
 
 on:
   schedule:
