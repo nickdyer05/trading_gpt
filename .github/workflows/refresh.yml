@@ -1,31 +1,57 @@
 name: Refresh Market Data
+
 permissions:
   contents: write
 
 on:
   schedule:
-    - cron: "15 21 * * 1-5"   # 5:15pm ET on weekdays; adjust if you want
-  workflow_dispatch: {}
+    - cron: "15 21 * * 1-5"    # ~5:15pm ET weekdays
+  workflow_dispatch: {}         # allow manual runs
 
 jobs:
   run:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0        # needed so we can push back
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - run: python -m pip install --upgrade pip
-      - run: pip install -r requirements.txt
-      - name: Build DB
-        run: python etl/refresh.py
+
+      - name: Install deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run ETL and verify DB
         env:
           TICKERS: ARKK,SPY,STRL,WAY,XBI
+        run: |
+          python etl/refresh.py
+          echo "--- LIST data/"
+          ls -lah data || true
+          echo "--- CHECK duckdb"
+          python - <<'PY'
+import os, duckdb
+db = os.path.join(os.getcwd(),'data','market.duckdb')
+print('DB exists?', os.path.exists(db))
+if os.path.exists(db):
+    print('DB size:', os.path.getsize(db), 'bytes')
+    con = duckdb.connect(db)
+    try:
+        print('Counts by symbol:', con.execute('SELECT symbol, COUNT(*) FROM ohlcv GROUP BY 1').fetchall())
+    finally:
+        con.close()
+PY
+
       - name: Commit updated DB
         run: |
-          git config user.name "bot"
-          git config user.email "bot@users.noreply.github.com"
+          git config user.name "actions-bot"
+          git config user.email "actions@users.noreply.github.com"
           git add data/market.duckdb
-          git commit -m "Update market DB" || echo "No changes"
-          git push || true
-
+          git commit -m "Update market DB" || echo "No changes to commit"
+          git push
