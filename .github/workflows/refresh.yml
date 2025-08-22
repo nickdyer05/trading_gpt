@@ -4,9 +4,11 @@ permissions:
   contents: write
 
 on:
+  workflow_dispatch: {}        # enables the “Run workflow” button
+  push:
+    branches: [ main ]         # lets you trigger by committing any change
   schedule:
     - cron: "15 21 * * 1-5"    # ~5:15pm ET weekdays
-  workflow_dispatch: {}         # allow manual runs
 
 jobs:
   run:
@@ -14,13 +16,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0        # needed so we can push back
+        with: { fetch-depth: 0 }
 
       - name: Set up Python 3.11
         uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
+        with: { python-version: "3.11" }
 
       - name: Install deps
         run: |
