@@ -1,1 +1,8 @@
+fastapi
+uvicorn[standard]
+duckdb
+pandas
+matplotlib
+yfinance
+python-dateutil
 
